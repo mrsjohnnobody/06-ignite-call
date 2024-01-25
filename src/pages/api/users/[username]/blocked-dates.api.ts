@@ -42,12 +42,22 @@ export default async function handle(
     )
   })
 
-  const blockedDatesRaw = await prisma.$queryRaw`
-    SELECT *
-    FROM schedulings S
-    WHERE S.user_id = ${user.id}
-      AND DATE_FORMAT(S.date, "%Y-%m") = ${`${year}-${month}`}
+  const blockedDatesRaw: Array<{ date: number }> = await prisma.$queryRaw`
+    SELECT 
+      EXTRACT(DAY FROM schedulings.date) AS date, 
+      COUNT(schedulings.date) AS amount
+
+    FROM schedulings
+
+    WHERE schedulings.user_id = ${user.id}
+      AND EXTRACT(YEAR from schedulings.date) = ${year}
+      AND EXTRACT(MONTH from schedulings.date) = ${month}
+
+    GROUP BY EXTRACT(DAY from schedulings.date)
+
   `
 
-  return res.json({ blockedWeekDays, blockedDatesRaw })
+  const blockedDates = blockedDatesRaw.map((item) => item.date)
+
+  return res.json({ blockedWeekDays, blockedDates })
 }
